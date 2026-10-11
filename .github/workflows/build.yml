@@ -1,4 +1,4 @@
-name: Build FF Guest Reseter
+name: Build FF Guest Reseter BlueStacks
 
 on:
   push:
@@ -15,12 +15,12 @@ jobs:
     - name: Compile EXE
       run: |
         $csc = "C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe"
-        & $csc /target:winexe /out:FF_Guest_Reseter.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll GuestReseter.cs
+        & $csc /target:winexe /out:FF_Guest_Reseter_BS.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll GuestReseter.cs
       shell: pwsh
 
     - name: Upload EXE
       uses: actions/upload-artifact@v4
       with:
-        name: FF-Guest-Reseter
-        path: FF_Guest_Reseter.exe
+        name: FF-Guest-Reseter-BlueStacks
+        path: FF_Guest_Reseter_BS.exe
         retention-days: 7
