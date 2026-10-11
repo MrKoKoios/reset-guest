@@ -126,7 +126,7 @@ public class GuestReseter : Form
             catch { }
 
             lblStatus.ForeColor = System.Drawing.Color.LimeGreen;
-            lblStatus.Text = $"Done! {cleared} location(s) cleared.\nFF খুললে নতুন Guest ID পাবে।";
+            lblStatus.Text = string.Format("Done! {0} location(s) cleared.\nFF খুললে নতুন Guest ID পাবে।", cleared);
         }
         catch (Exception ex)
         {
