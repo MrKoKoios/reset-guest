@@ -9,24 +9,17 @@ public class GuestReseter : Form
     private Label lblStatus;
     private Label lblTitle;
 
-    private static readonly string[] FF_DATA_PATHS = {
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            @"Garena\Free Fire"),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            @"Garena\Free Fire"),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "Low",
-            @"Garena\Free Fire"),
-    };
-
-    private static readonly string[] FF_REG_KEYS = {
-        @"SOFTWARE\Garena\Free Fire",
-        @"SOFTWARE\WOW6432Node\Garena\Free Fire",
-    };
+    private static readonly string APPDATA_LOCAL =
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+    private static readonly string PROGRAMDATA =
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+    private static readonly string USERPROFILE =
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     public GuestReseter()
     {
-        this.Text = "FF Guest ID Reseter";
-        this.Size = new System.Drawing.Size(380, 200);
+        this.Text = "FF Guest ID Reseter - BlueStacks";
+        this.Size = new System.Drawing.Size(420, 220);
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;
         this.StartPosition = FormStartPosition.CenterScreen;
@@ -37,15 +30,15 @@ public class GuestReseter : Form
         lblTitle.Font = new System.Drawing.Font("Segoe UI", 12, System.Drawing.FontStyle.Bold);
         lblTitle.ForeColor = System.Drawing.Color.Orange;
         lblTitle.Location = new System.Drawing.Point(70, 20);
-        lblTitle.Size = new System.Drawing.Size(260, 30);
+        lblTitle.Size = new System.Drawing.Size(280, 30);
         lblTitle.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
 
         lblStatus = new Label();
-        lblStatus.Text = "Ready";
+        lblStatus.Text = "Ready -- BlueStacks Free Fire data clear করবে";
         lblStatus.Font = new System.Drawing.Font("Segoe UI", 9);
         lblStatus.ForeColor = System.Drawing.Color.LightGray;
         lblStatus.Location = new System.Drawing.Point(20, 65);
-        lblStatus.Size = new System.Drawing.Size(330, 40);
+        lblStatus.Size = new System.Drawing.Size(380, 50);
         lblStatus.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
 
         btnReset = new Button();
@@ -54,8 +47,8 @@ public class GuestReseter : Form
         btnReset.BackColor = System.Drawing.Color.OrangeRed;
         btnReset.ForeColor = System.Drawing.Color.White;
         btnReset.FlatStyle = FlatStyle.Flat;
-        btnReset.Location = new System.Drawing.Point(110, 120);
-        btnReset.Size = new System.Drawing.Size(150, 35);
+        btnReset.Location = new System.Drawing.Point(130, 140);
+        btnReset.Size = new System.Drawing.Size(160, 38);
         btnReset.Click += BtnReset_Click;
 
         this.Controls.Add(lblTitle);
@@ -66,7 +59,7 @@ public class GuestReseter : Form
     private void BtnReset_Click(object sender, EventArgs e)
     {
         var result = MessageBox.Show(
-            "Guest ID reset করলে তোমার current guest account চলে যাবে।\nনিশ্চিত?",
+            "BlueStacks এ Free Fire এর Guest ID reset হবে।\nBlueStacks বন্ধ আছে তো?\n\nনিশ্চিত?",
             "Confirm Reset",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning
@@ -82,51 +75,87 @@ public class GuestReseter : Form
         {
             int cleared = 0;
 
-            foreach (string path in FF_DATA_PATHS)
+            // BlueStacks NXT (latest) paths
+            string[] bsNxtPaths = {
+                Path.Combine(PROGRAMDATA, @"BlueStacks_nxt\Engine\UserData\SharedFolder"),
+                Path.Combine(PROGRAMDATA, @"BlueStacks_nxt\Engine\Android\data\com.dts.freefireth"),
+                Path.Combine(PROGRAMDATA, @"BlueStacks_nxt\Engine\Android\data\com.garena.game.fftw"),
+                Path.Combine(APPDATA_LOCAL, @"BlueStacks_nxt\GameData\com.dts.freefireth"),
+                Path.Combine(APPDATA_LOCAL, @"BlueStacks_nxt\GameData\com.garena.game.fftw"),
+            };
+
+            // BlueStacks 5 paths
+            string[] bs5Paths = {
+                Path.Combine(PROGRAMDATA, @"BlueStacks\Engine\UserData\SharedFolder"),
+                Path.Combine(PROGRAMDATA, @"BlueStacks\Engine\Android\data\com.dts.freefireth"),
+                Path.Combine(PROGRAMDATA, @"BlueStacks\Engine\Android\data\com.garena.game.fftw"),
+                Path.Combine(APPDATA_LOCAL, @"BlueStacks\GameData\com.dts.freefireth"),
+                Path.Combine(APPDATA_LOCAL, @"BlueStacks\GameData\com.garena.game.fftw"),
+            };
+
+            // BlueStacks HD (older) paths
+            string[] bsHDPaths = {
+                Path.Combine(USERPROFILE, @"BlueStacks\Android\data\com.dts.freefireth"),
+                Path.Combine(USERPROFILE, @"BlueStacks\Android\data\com.garena.game.fftw"),
+            };
+
+            // Registry keys for BlueStacks FF
+            string[] bsRegKeys = {
+                @"SOFTWARE\BlueStacks\Guests\com.dts.freefireth",
+                @"SOFTWARE\BlueStacks\Guests\com.garena.game.fftw",
+                @"SOFTWARE\BlueStacks_nxt\Guests\com.dts.freefireth",
+                @"SOFTWARE\BlueStacks_nxt\Guests\com.garena.game.fftw",
+                @"SOFTWARE\WOW6432Node\BlueStacks\Guests\com.dts.freefireth",
+                @"SOFTWARE\WOW6432Node\BlueStacks_nxt\Guests\com.dts.freefireth",
+            };
+
+            // SharedPreferences -- guest token lives here
+            string[] sharedPrefPaths = {
+                Path.Combine(PROGRAMDATA, @"BlueStacks_nxt\Engine\Android\data\com.dts.freefireth\shared_prefs"),
+                Path.Combine(PROGRAMDATA, @"BlueStacks_nxt\Engine\Android\data\com.garena.game.fftw\shared_prefs"),
+                Path.Combine(PROGRAMDATA, @"BlueStacks\Engine\Android\data\com.dts.freefireth\shared_prefs"),
+                Path.Combine(PROGRAMDATA, @"BlueStacks\Engine\Android\data\com.garena.game.fftw\shared_prefs"),
+            };
+
+            // Clear all data paths
+            string[][] allPaths = { bsNxtPaths, bs5Paths, bsHDPaths, sharedPrefPaths };
+            foreach (string[] group in allPaths)
             {
-                if (Directory.Exists(path))
+                foreach (string path in group)
                 {
-                    ClearDirectory(path);
-                    cleared++;
+                    if (Directory.Exists(path))
+                    {
+                        ClearDirectory(path);
+                        cleared++;
+                    }
                 }
             }
 
-            foreach (string regKey in FF_REG_KEYS)
+            // Clear registry
+            foreach (string regKey in bsRegKeys)
             {
                 try
                 {
-                    using (var key = Registry.CurrentUser.OpenSubKey(regKey, writable: true))
-                    {
-                        if (key != null)
-                        {
-                            foreach (string valueName in key.GetValueNames())
-                            {
-                                if (valueName.ToLower().Contains("guest") ||
-                                    valueName.ToLower().Contains("token") ||
-                                    valueName.ToLower().Contains("uid") ||
-                                    valueName.ToLower().Contains("userid"))
-                                {
-                                    key.DeleteValue(valueName, throwOnMissingValue: false);
-                                    cleared++;
-                                }
-                            }
-                        }
-                    }
                     Registry.CurrentUser.DeleteSubKeyTree(regKey, throwOnMissingSubKey: false);
+                    Registry.LocalMachine.DeleteSubKeyTree(regKey, throwOnMissingSubKey: false);
+                    cleared++;
                 }
                 catch { }
             }
 
-            string unityPrefsKey = @"SOFTWARE\Garena Online Pte. Ltd\Free Fire";
-            try
+            if (cleared == 0)
             {
-                Registry.CurrentUser.DeleteSubKeyTree(unityPrefsKey, throwOnMissingSubKey: false);
-                Registry.LocalMachine.DeleteSubKeyTree(unityPrefsKey, throwOnMissingSubKey: false);
+                lblStatus.ForeColor = System.Drawing.Color.Yellow;
+                lblStatus.Text = "BlueStacks data খুঁজে পায়নি।\nBlueStacks installed আছে?";
             }
-            catch { }
-
-            lblStatus.ForeColor = System.Drawing.Color.LimeGreen;
-            lblStatus.Text = string.Format("Done! {0} location(s) cleared.\nFF খুললে নতুন Guest ID পাবে।", cleared);
+            else
+            {
+                lblStatus.ForeColor = System.Drawing.Color.LimeGreen;
+                lblStatus.Text = string.Format(
+                    "Done! {0} location(s) cleared.\nBlueStacks খুলে FF চালাও -- নতুন Guest ID পাবে।",
+                    cleared
+                );
+            }
         }
         catch (Exception ex)
         {
