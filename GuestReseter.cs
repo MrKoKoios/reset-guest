@@ -3,6 +3,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Windows.Forms;
 using System.Threading;
+using System.Collections.Generic;
 
 public class GuestReseter : Form
 {
@@ -13,6 +14,7 @@ public class GuestReseter : Form
     private ListBox lstFiles;
     private string adbPath = @"C:\platform-tools\adb.exe";
     private string adbDevice = "127.0.0.1:5555";
+    private string foundPackage = "";
 
     private static readonly string[] FF_PACKAGES = {
         "com.dts.freefireth",
@@ -20,13 +22,8 @@ public class GuestReseter : Form
         "com.dts.freefiremax"
     };
 
-    private static readonly string[] GUEST_PREF_KEYWORDS = {
-        "guest", "Guest", "GUEST",
-        "token", "Token", "TOKEN",
-        "uid", "Uid", "UID",
-        "account", "Account",
-        "login", "Login",
-        "auth", "Auth"
+    private static readonly string[] GUEST_KEYWORDS = {
+        "guest", "token", "uid", "account", "login", "auth"
     };
 
     public GuestReseter()
@@ -113,37 +110,51 @@ public class GuestReseter : Form
         }
     }
 
+    private bool IsGuestFile(string fname)
+    {
+        string lower = fname.ToLower();
+        for (int i = 0; i < GUEST_KEYWORDS.Length; i++)
+        {
+            if (lower.Contains(GUEST_KEYWORDS[i]))
+                return true;
+        }
+        return false;
+    }
+
     private void BtnScan_Click(object sender, EventArgs e)
     {
         lstFiles.Items.Clear();
         btnReset.Enabled = false;
         btnScan.Enabled = false;
+        foundPackage = "";
         lblStatus.ForeColor = System.Drawing.Color.Yellow;
         lblStatus.Text = "Connecting to MSI App Player...";
 
         Thread t = new Thread(delegate()
         {
-            // Connect ADB
             RunAdb("connect " + adbDevice);
             Thread.Sleep(1000);
 
-            string foundPackage = "";
-            string foundFiles = "";
+            string pkg = "";
+            string fileList = "";
 
-            foreach (string pkg in FF_PACKAGES)
+            for (int i = 0; i < FF_PACKAGES.Length; i++)
             {
-                string result = RunAdb("-s " + adbDevice + " shell ls /data/data/" + pkg + "/shared_prefs/ 2>/dev/null");
-                if (!string.IsNullOrEmpty(result.Trim()) && !result.Contains("No such file"))
+                string result = RunAdb("-s " + adbDevice + " shell ls /data/data/" + FF_PACKAGES[i] + "/shared_prefs/");
+                if (!string.IsNullOrEmpty(result.Trim()) && !result.Contains("No such file") && !result.Contains("Permission denied"))
                 {
-                    foundPackage = pkg;
-                    foundFiles = result;
+                    pkg = FF_PACKAGES[i];
+                    fileList = result;
                     break;
                 }
             }
 
+            string pkgCopy = pkg;
+            string fileListCopy = fileList;
+
             this.Invoke(new Action(delegate()
             {
-                if (string.IsNullOrEmpty(foundPackage))
+                if (string.IsNullOrEmpty(pkgCopy))
                 {
                     lblStatus.ForeColor = System.Drawing.Color.Red;
                     lblStatus.Text = "Free Fire খুঁজে পায়নি। MSI App Player চালু আছে?";
@@ -151,28 +162,19 @@ public class GuestReseter : Form
                     return;
                 }
 
-                lstFiles.Items.Add("Package: " + foundPackage);
-                lstFiles.Items.Add("---shared_prefs files---");
+                foundPackage = pkgCopy;
+                lstFiles.Items.Add("Package: " + pkgCopy);
+                lstFiles.Items.Add("------------------------");
 
-                string[] lines = foundFiles.Split(new char[]{'\n', '\r'}, StringSplitOptions.RemoveEmptyEntries);
+                string[] lines = fileListCopy.Split(new char[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
                 int guestCount = 0;
 
-                foreach (string line in lines)
+                for (int i = 0; i < lines.Length; i++)
                 {
-                    string fname = line.Trim();
+                    string fname = lines[i].Trim();
                     if (string.IsNullOrEmpty(fname)) continue;
 
-                    bool isGuest = false;
-                    foreach (string kw in GUEST_PREF_KEYWORDS)
-                    {
-                        if (fname.ToLower().Contains(kw.ToLower()))
-                        {
-                            isGuest = true;
-                            break;
-                        }
-                    }
-
-                    if (isGuest)
+                    if (IsGuestFile(fname))
                     {
                         lstFiles.Items.Add("[GUEST] " + fname);
                         guestCount++;
@@ -192,12 +194,11 @@ public class GuestReseter : Form
                 else
                 {
                     lblStatus.ForeColor = System.Drawing.Color.Yellow;
-                    lblStatus.Text = "Guest file আলাদা করা যাচ্ছে না -- সব file দেখাচ্ছে।";
+                    lblStatus.Text = "Scan শেষ। Reset চাপো।";
                     btnReset.Enabled = true;
                 }
 
                 btnScan.Enabled = true;
-                this.Tag = foundPackage;
             }));
         });
         t.IsBackground = true;
@@ -206,8 +207,7 @@ public class GuestReseter : Form
 
     private void BtnReset_Click(object sender, EventArgs e)
     {
-        string pkg = this.Tag as string;
-        if (string.IsNullOrEmpty(pkg)) return;
+        if (string.IsNullOrEmpty(foundPackage)) return;
 
         var result = MessageBox.Show(
             "শুধু Guest ID এর file গুলো delete হবে।\nবাকি game data থাকবে।\n\nনিশ্চিত?",
@@ -222,52 +222,48 @@ public class GuestReseter : Form
         lblStatus.ForeColor = System.Drawing.Color.Yellow;
         lblStatus.Text = "Resetting...";
 
+        List<string> toDelete = new List<string>();
+        for (int i = 0; i < lstFiles.Items.Count; i++)
+        {
+            string item = lstFiles.Items[i].ToString();
+            if (item.StartsWith("[GUEST]"))
+            {
+                toDelete.Add(item.Substring(8).Trim());
+            }
+        }
+
+        string pkg = foundPackage;
+        List<string> toDeleteCopy = toDelete;
+
         Thread t = new Thread(delegate()
         {
             int deleted = 0;
 
-            foreach (ListBox.ObjectCollection items = lstFiles.Items;;)
+            for (int i = 0; i < toDeleteCopy.Count; i++)
             {
-                string[] itemsCopy = null;
-                this.Invoke(new Action(delegate()
-                {
-                    itemsCopy = new string[lstFiles.Items.Count];
-                    for (int i = 0; i < lstFiles.Items.Count; i++)
-                        itemsCopy[i] = lstFiles.Items[i].ToString();
-                }));
-
-                foreach (string item in itemsCopy)
-                {
-                    if (item.StartsWith("[GUEST]"))
-                    {
-                        string fname = item.Replace("[GUEST] ", "").Trim();
-                        string delCmd = "-s " + adbDevice + " shell rm /data/data/" + pkg + "/shared_prefs/" + fname;
-                        RunAdb(delCmd);
-                        deleted++;
-                    }
-                }
-                break;
+                string fname = toDeleteCopy[i];
+                RunAdb("-s " + adbDevice + " shell rm /data/data/" + pkg + "/shared_prefs/" + fname);
+                deleted++;
             }
 
-            // Also delete guest_info if exists
             string[] extraFiles = {
                 "guest_info.xml",
                 "GuestAccount.xml",
                 "guest_account.xml",
                 "GuestLogin.xml",
-                "guest_token.xml",
-                "PlayerPrefs.xml"
+                "guest_token.xml"
             };
 
-            foreach (string f in extraFiles)
+            for (int i = 0; i < extraFiles.Length; i++)
             {
-                RunAdb("-s " + adbDevice + " shell rm /data/data/" + pkg + "/shared_prefs/" + f + " 2>/dev/null");
+                RunAdb("-s " + adbDevice + " shell rm /data/data/" + pkg + "/shared_prefs/" + extraFiles[i]);
             }
 
+            int deletedCopy = deleted;
             this.Invoke(new Action(delegate()
             {
                 lblStatus.ForeColor = System.Drawing.Color.LimeGreen;
-                lblStatus.Text = string.Format("Done! {0} file deleted। FF চালাও -- নতুন Guest ID পাবে।", deleted);
+                lblStatus.Text = string.Format("Done! {0} file deleted। FF চালাও -- নতুন Guest ID পাবে।", deletedCopy);
                 btnScan.Enabled = true;
             }));
         });
